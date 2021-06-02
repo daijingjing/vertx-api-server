@@ -1,8 +1,6 @@
 package com.ranqiyun.service.web.services;
 
 import com.google.common.base.Strings;
-import com.ranqiyun.service.web.annotation.AutowiredService;
-import com.ranqiyun.service.web.annotation.Service;
 import com.ranqiyun.service.web.common.ServiceBase;
 import com.ranqiyun.service.web.util.DateUtil;
 import com.ranqiyun.service.web.util.DesUtil;
@@ -11,22 +9,17 @@ import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import org.joda.time.DateTime;
 
-@Service
-public class TokenService extends ServiceBase {
+public class TokenService {
 
     // 默认令牌有效期
     private static final int DEFAULT_EXPIRES = 24 * 60 * 1; // 1 天
-
-    public TokenService(Vertx vertx, JsonObject config) {
-        super(vertx, config);
-    }
 
     /**
      * 生成新的令牌
      * @param user_id 用户ID
      * @return 令牌
      */
-    public Future<String> get(String user_id) {
+    public static Future<String> get(String user_id) {
         return get(user_id, DEFAULT_EXPIRES);
     }
 
@@ -36,7 +29,7 @@ public class TokenService extends ServiceBase {
      * @param expires 过期时间，秒
      * @return 令牌
      */
-    public Future<String> get(String user_id, int expires) {
+    public static Future<String> get(String user_id, int expires) {
         Token token = new Token(user_id, expires);
         try {
             return Future.succeededFuture(DesUtil.encrypt(token.encode()));
@@ -50,7 +43,7 @@ public class TokenService extends ServiceBase {
      * @param token 令牌
      * @return 用户ID
      */
-    public Future<String> parse(String token) {
+    public static Future<String> parse(String token) {
         return _parse(token)
             .compose(session -> {
                 if (session.valid()) {
@@ -76,7 +69,7 @@ public class TokenService extends ServiceBase {
      * @param expires 过期时间，秒
      * @return 新的令牌
      */
-    public Future<String> refresh(String token, int expires) {
+    public static Future<String> refresh(String token, int expires) {
         return _parse(token)
             .compose(session -> {
                 if (session.valid()) {
@@ -87,7 +80,7 @@ public class TokenService extends ServiceBase {
             });
     }
 
-    private Future<Token> _parse(String token) {
+    private static Future<Token> _parse(String token) {
         try {
             return Future.succeededFuture(new Token(DesUtil.decrypt(token)));
         } catch (Exception e) {
@@ -95,7 +88,7 @@ public class TokenService extends ServiceBase {
         }
     }
 
-    public class Token extends JsonObject {
+    public static class Token extends JsonObject {
         private static final String USER_ID = "user_id";
         private static final String EXPIRES = "expires";
 
@@ -121,5 +114,4 @@ public class TokenService extends ServiceBase {
             return false;
         }
     }
-
 }

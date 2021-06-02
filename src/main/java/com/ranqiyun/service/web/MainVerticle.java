@@ -33,7 +33,7 @@ public class MainVerticle extends AbstractVerticle {
 
     @Override
     public void stop(Promise<Void> stopFuture) throws Exception {
-        logger.info("API Server is shutdown...");
+        logger.info("API Server shutdown...");
         httpServer.close(ar -> {
             stopFuture.complete();
             logger.info("API Server is shutdown!");

@@ -9,6 +9,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import io.vertx.redis.client.Redis;
 import io.vertx.redis.client.RedisAPI;
+import io.vertx.redis.client.RedisOptions;
 
 import java.util.Objects;
 
@@ -22,7 +23,7 @@ public class CachedService extends ServiceBase {
 
     public CachedService(Vertx vertx, JsonObject config) {
         super(vertx, config);
-        redisClient = Redis.createClient(vertx, config.getJsonObject("redis", new JsonObject()).getString("endpoint"));
+        redisClient = Redis.createClient(vertx, new RedisOptions(config.getJsonObject("redis", new JsonObject())));
     }
 
     @Override

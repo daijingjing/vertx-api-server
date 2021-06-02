@@ -43,7 +43,6 @@ public class DispatchHandler extends ControllerBase implements Handler<RoutingCo
 
     private Map<String, AbstractMap.SimpleEntry<Object, Method>> requestMaps = new TreeMap<>();
 
-
     public static Router create(Vertx vertx, JsonObject config, String handlersPackageName) {
         logger.info("Initializing router ...");
         Router router = Router.router(vertx);
@@ -62,6 +61,7 @@ public class DispatchHandler extends ControllerBase implements Handler<RoutingCo
             .setDeleteUploadedFilesOnEnd(true));
 
         // 业务分发接口
+        router.route().handler(ServiceManager.autowired(new TokenHandler(vertx, config)));
         router.route().handler(ServiceManager.autowired(new DispatchHandler(vertx, config, handlersPackageName)));
 
         // static content
@@ -120,6 +120,11 @@ public class DispatchHandler extends ControllerBase implements Handler<RoutingCo
                                 String requestName = ClassUtil.getRequestName(request);
 
                                 String uri = "/" + controllerName + "/" + requestName;
+
+                                if (requestMaps.containsKey(uri)) {
+                                    r.fail(String.format("路由地址重复: [%s%s] [%s.%s] ...", this.uriPrefix, uri, instance.getClass().getName(), request.getName()));
+                                    return;
+                                }
 
                                 requestMaps.put(uri, new AbstractMap.SimpleEntry<>(instance, request));
 

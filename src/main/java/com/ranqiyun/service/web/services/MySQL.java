@@ -42,7 +42,13 @@ public class MySQL extends ServiceBase {
 
     @Override
     public void destroy() {
-        pool.close();
+        pool.close(ar -> {
+            if (ar.succeeded()) {
+                logger.info("MySQL 数据服务已关闭");
+            } else {
+                logger.error("MySQL 数据服务关闭失败", ar.cause());
+            }
+        });
     }
 
     public Future<Void> executeNoResult(Object[] params, String sql) {

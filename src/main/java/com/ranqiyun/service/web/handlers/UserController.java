@@ -1,8 +1,14 @@
 package com.ranqiyun.service.web.handlers;
 
-import com.ranqiyun.service.web.annotation.*;
+import com.ranqiyun.service.web.annotation.AutowiredService;
+import com.ranqiyun.service.web.annotation.Controller;
+import com.ranqiyun.service.web.annotation.Params;
+import com.ranqiyun.service.web.annotation.RequestMap;
 import com.ranqiyun.service.web.common.ControllerBase;
-import com.ranqiyun.service.web.services.*;
+import com.ranqiyun.service.web.services.LogService;
+import com.ranqiyun.service.web.services.ShortMessageService;
+import com.ranqiyun.service.web.services.TokenService;
+import com.ranqiyun.service.web.services.UserService;
 import com.ranqiyun.service.web.util.ValidateCode;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -17,7 +23,7 @@ import java.util.Random;
 /**
  * @apiDefine User 用户功能服务
  */
-@Controller(value = "/user", describe = "用户功能服务")
+@Controller(value = "/user", describe = "用户功能")
 public class UserController extends ControllerBase {
 
     @AutowiredService
@@ -27,13 +33,7 @@ public class UserController extends ControllerBase {
     private LogService logService;
 
     @AutowiredService
-    private TokenService tokenService;
-
-    @AutowiredService
     private ShortMessageService shortMessageService;
-
-    @AutowiredService
-    private SystemUserService systemUserService;
 
     public UserController(Vertx vertx, JsonObject config) {
         super(vertx, config);
@@ -94,8 +94,8 @@ public class UserController extends ControllerBase {
         if (ValidateCode.validateCode(sign, code)) {
             String sms_code = String.format("%04d", new Random().nextInt(9999));
             userService.saveVerifyCode(mobile, sms_code)
-                .compose(ar -> userService.getUserByMobile(mobile))
-                .onComplete(succeeded(context, ar -> {
+                .compose($ -> userService.getUserByMobile(mobile))
+                .onComplete(succeeded(context, user -> {
                     logger.info(String.format("[%s]请求短信验证码：%s", mobile, sms_code));
                     shortMessageService.send_verify_code(mobile, sms_code);
                     responseJson(context, 0, "验证码已发送至手机");
@@ -131,7 +131,7 @@ public class UserController extends ControllerBase {
             .compose(u -> userService.bindOpenId(u.getString("id"), openid))
             .compose(user_id -> {
                 logService.log(null, "用户登录", user_id, "用户通过手机号验证码登录，IP: %s", device);
-                return tokenService.get(user_id);
+                return TokenService.get(user_id);
             })
             .onComplete(succeeded(context, t -> responseJson(context, new JsonObject().put("token", t))));
     }
@@ -159,7 +159,7 @@ public class UserController extends ControllerBase {
                 logService.log(null, "用户登录", user.getString("id"),
                     "用户通过OPENID登录，IP: %s", device);
 
-                return tokenService.get(user.getString("id"));
+                return TokenService.get(user.getString("id"));
             })
             .onComplete(succeeded(context, t -> responseJson(context, new JsonObject().put("token", t))));
     }
@@ -191,7 +191,7 @@ public class UserController extends ControllerBase {
             userService.checkPassword(mobile, password)
                 .compose(user_id -> {
                     logService.log(null, "用户", user_id, "用户通过密码登录，IP: %s", device);
-                    return tokenService.get(user_id);
+                    return TokenService.get(user_id);
                 })
                 .onComplete(succeeded(context, t -> responseJson(context, new JsonObject().put("token", t))));
         } else {
@@ -253,12 +253,11 @@ public class UserController extends ControllerBase {
      *
      * @apiSuccess {String} message 操作成功
      */
-    @RequestMap(describe = "更新用户信息")
+    @RequestMap(describe = "更新用户昵称")
     public void update_name(RoutingContext context,
                             @Params("nickname") String nickname) {
         userService.updateName(currentUserId(context), nickname)
             .onComplete(succeeded(context, ar -> {
-                logService.log(currentUserId(context), "用户", currentUserId(context), "修改用户昵称");
                 responseSuccessJson(context);
             }));
     }
@@ -280,7 +279,6 @@ public class UserController extends ControllerBase {
                               @Params(value = "openid", required = true) String openid) {
         userService.unbindOpenId(currentUserId(context), openid)
             .onComplete(succeeded(context, ar -> {
-                logService.log(currentUserId(context), "用户", currentUserId(context), "解绑用户OPENID");
                 responseSuccessJson(context);
             }));
     }
@@ -307,7 +305,6 @@ public class UserController extends ControllerBase {
             .compose($ -> userService.getUserByMobile(mobile))
             .compose(u -> userService.updatePassword(u.getString("id"), new_passwd)
                 .onComplete(succeeded(context, ar -> {
-                    logService.log(currentUserId(context), "用户", u.getString("id"), "重置密码");
                     responseSuccessJson(context);
                 }))
             );
