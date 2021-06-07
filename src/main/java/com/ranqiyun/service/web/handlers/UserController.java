@@ -93,13 +93,14 @@ public class UserController extends ControllerBase {
                               @Params(value = "verifyCode", describe = "图形验证码") String code) {
         if (ValidateCode.validateCode(sign, code)) {
             String sms_code = String.format("%04d", new Random().nextInt(9999));
-            userService.saveVerifyCode(mobile, sms_code)
-                .compose($ -> userService.getUserByMobile(mobile))
-                .onComplete(succeeded(context, user -> {
+            succeeded(context,
+                userService.getUserByMobile(mobile)
+                    .compose(user -> userService.saveVerifyCode(mobile, sms_code).map($ -> user)),
+                user -> {
                     logger.info(String.format("[%s]请求短信验证码：%s", mobile, sms_code));
                     shortMessageService.send_verify_code(mobile, sms_code);
                     responseJson(context, 0, "验证码已发送至手机");
-                }));
+                });
         } else {
             internalError(context, 500, "图形验证码错误或过期，请重新获取");
         }
@@ -126,14 +127,15 @@ public class UserController extends ControllerBase {
                       @Params("openid") String openid) {
         String device = getClientAddress(context.request());
 
-        userService.verifyCode(mobile, code)
-            .compose($ -> userService.getOrCreateUserByMobile(mobile))
-            .compose(u -> userService.bindOpenId(u.getString("id"), openid))
-            .compose(user_id -> {
-                logService.log(null, "用户登录", user_id, "用户通过手机号验证码登录，IP: %s", device);
-                return TokenService.get(user_id);
-            })
-            .onComplete(succeeded(context, t -> responseJson(context, new JsonObject().put("token", t))));
+        succeeded(context,
+            userService.verifyCode(mobile, code)
+                .compose($ -> userService.getOrCreateUserByMobile(mobile))
+                .compose(u -> userService.bindOpenId(u.getString("id"), openid))
+                .compose(user_id -> {
+                    logService.log(null, "用户登录", user_id, "用户通过手机号验证码登录，IP: %s", device);
+                    return TokenService.get(user_id);
+                }),
+            token -> responseJson(context, new JsonObject().put("token", token)));
     }
 
 
@@ -154,14 +156,13 @@ public class UserController extends ControllerBase {
                              @Params("openid") String openid) {
         String device = getClientAddress(context.request());
 
-        userService.getUserByOpenId(openid)
-            .compose(user -> {
-                logService.log(null, "用户登录", user.getString("id"),
-                    "用户通过OPENID登录，IP: %s", device);
-
-                return TokenService.get(user.getString("id"));
-            })
-            .onComplete(succeeded(context, t -> responseJson(context, new JsonObject().put("token", t))));
+        succeeded(context,
+            userService.getUserByOpenId(openid)
+                .compose(user -> {
+                    logService.log(null, "用户登录", user.getString("id"), "用户通过OPENID登录，IP: %s", device);
+                    return TokenService.get(user.getString("id"));
+                }),
+            token -> responseJson(context, new JsonObject().put("token", token)));
     }
 
 
@@ -187,13 +188,13 @@ public class UserController extends ControllerBase {
                                @Params(value = "verifyCode") String code) {
         String device = getClientAddress(context.request());
         if (ValidateCode.validateCode(sign, code)) {
-
-            userService.checkPassword(mobile, password)
-                .compose(user_id -> {
-                    logService.log(null, "用户", user_id, "用户通过密码登录，IP: %s", device);
-                    return TokenService.get(user_id);
-                })
-                .onComplete(succeeded(context, t -> responseJson(context, new JsonObject().put("token", t))));
+            succeeded(context,
+                userService.checkPassword(mobile, password)
+                    .compose(user_id -> {
+                        logService.log(null, "用户", user_id, "用户通过密码登录，IP: %s", device);
+                        return TokenService.get(user_id);
+                    }),
+                token -> responseJson(context, new JsonObject().put("token", token)));
         } else {
             internalError(context, 500, "图形验证码错误或过期，请重新获取");
         }
@@ -217,8 +218,7 @@ public class UserController extends ControllerBase {
      */
     @RequestMap(describe = "当前用户信息")
     public void info(RoutingContext context) {
-        userService.getUser(currentUserId(context))
-            .onComplete(succeeded(context, user -> responseJson(context, user)));
+        succeededResponse(context, userService.getUser(currentUserId(context)));
     }
 
     /**
@@ -235,11 +235,7 @@ public class UserController extends ControllerBase {
     @RequestMap(describe = "修改登录密码")
     public void change_password(RoutingContext context,
                                 @Params("password") String password) {
-        userService.updatePassword(currentUserId(context), password)
-            .onComplete(succeeded(context, ar -> {
-                logService.log(currentUserId(context), "用户", currentUserId(context), "修改登录密码");
-                responseSuccessJson(context);
-            }));
+        succeeded(context, userService.updatePassword(currentUserId(context), password));
     }
 
     /**
@@ -256,10 +252,7 @@ public class UserController extends ControllerBase {
     @RequestMap(describe = "更新用户昵称")
     public void update_name(RoutingContext context,
                             @Params("nickname") String nickname) {
-        userService.updateName(currentUserId(context), nickname)
-            .onComplete(succeeded(context, ar -> {
-                responseSuccessJson(context);
-            }));
+        succeeded(context, userService.updateName(currentUserId(context), nickname));
     }
 
     /**
@@ -277,10 +270,7 @@ public class UserController extends ControllerBase {
     @RequestMap(describe = "解绑用户OPENID")
     public void unbind_openid(RoutingContext context,
                               @Params(value = "openid", required = true) String openid) {
-        userService.unbindOpenId(currentUserId(context), openid)
-            .onComplete(succeeded(context, ar -> {
-                responseSuccessJson(context);
-            }));
+        succeeded(context, userService.unbindOpenId(currentUserId(context), openid));
     }
 
     /**
@@ -301,12 +291,9 @@ public class UserController extends ControllerBase {
                                @Params(value = "code", required = true) String code,
                                @Params(value = "mobile", required = true) String mobile,
                                @Params(value = "new_passwd", required = true) String new_passwd) {
-        userService.verifyCode(mobile, code)
-            .compose($ -> userService.getUserByMobile(mobile))
-            .compose(u -> userService.updatePassword(u.getString("id"), new_passwd)
-                .onComplete(succeeded(context, ar -> {
-                    responseSuccessJson(context);
-                }))
-            );
+        succeeded(context,
+            userService.verifyCode(mobile, code)
+                .compose($ -> userService.getUserByMobile(mobile))
+                .compose(u -> userService.updatePassword(u.getString("id"), new_passwd)));
     }
 }

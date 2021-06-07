@@ -104,4 +104,10 @@ public class Utils {
         return CompositeFuture.all(s.stream().map(mapper).collect(Collectors.toList()))
             .map(CompositeFuture::list);
     }
+
+    public static <T, R> Future<List<R>> transform(Future<List<T>> future, Function<T, Future<R>> mapper) {
+        return future.compose(s -> CompositeFuture.all(s.stream().map(mapper).collect(Collectors.toList()))
+            .map(CompositeFuture::list));
+    }
+
 }

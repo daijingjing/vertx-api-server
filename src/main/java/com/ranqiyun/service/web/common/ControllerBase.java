@@ -3,6 +3,7 @@ package com.ranqiyun.service.web.common;
 import com.google.common.base.Strings;
 import com.ranqiyun.service.web.util.DateUtil;
 import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServerRequest;
@@ -113,5 +114,17 @@ public abstract class ControllerBase {
                 internalError(context, ar.cause());
             }
         };
+    }
+
+    public static <T> void succeeded(RoutingContext context, Future<T> future, Handler<T> h2) {
+        future.onComplete(succeeded(context, h2));
+    }
+
+    public static <T> void succeeded(RoutingContext context, Future<T> future) {
+        future.onComplete(succeeded(context, $ -> responseSuccessJson(context)));
+    }
+
+    public static <T> void succeededResponse(RoutingContext context, Future<T> future) {
+        future.onComplete(succeeded(context, d -> responseJson(context, d)));
     }
 }
