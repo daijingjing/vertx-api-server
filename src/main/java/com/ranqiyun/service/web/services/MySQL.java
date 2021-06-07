@@ -8,10 +8,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import io.vertx.mysqlclient.MySQLConnectOptions;
 import io.vertx.mysqlclient.MySQLPool;
-import io.vertx.sqlclient.PoolOptions;
-import io.vertx.sqlclient.Row;
-import io.vertx.sqlclient.SqlConnection;
-import io.vertx.sqlclient.Tuple;
+import io.vertx.sqlclient.*;
 import io.vertx.sqlclient.templates.SqlTemplate;
 import io.vertx.sqlclient.templates.TupleMapper;
 
@@ -101,6 +98,14 @@ public class MySQL extends ServiceBase {
                     .mapEmpty())
                 .collect(Collectors.toList())).mapEmpty());
     }
+
+    public Future<Void> batchExecuteNoResult(List<Object[]> params, String sql) {
+        return transaction(client -> {
+            PreparedQuery<RowSet<Row>> preparedQuery = client.preparedQuery(sql);
+            return preparedQuery.executeBatch(params.stream().map(Tuple::from).collect(Collectors.toList())).mapEmpty();
+        });
+    }
+
 
     public <T> Future<T> transaction(Function<SqlConnection, Future<T>> execute) {
         return pool.withTransaction(execute);

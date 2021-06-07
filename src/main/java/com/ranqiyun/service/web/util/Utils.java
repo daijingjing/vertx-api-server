@@ -100,7 +100,7 @@ public class Utils {
         return object -> seen.putIfAbsent(keyExtractor.apply(object), Boolean.TRUE) == null;
     }
 
-    public static <T> Future<List<T>> transform(List<T> s, Function<T, Future<T>> mapper) {
+    public static <T, R> Future<List<R>> transform(List<T> s, Function<T, Future<R>> mapper) {
         return CompositeFuture.all(s.stream().map(mapper).collect(Collectors.toList()))
             .map(CompositeFuture::list);
     }

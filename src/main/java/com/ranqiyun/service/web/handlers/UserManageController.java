@@ -5,7 +5,7 @@ import com.ranqiyun.service.web.annotation.Controller;
 import com.ranqiyun.service.web.annotation.Params;
 import com.ranqiyun.service.web.annotation.RequestMap;
 import com.ranqiyun.service.web.common.ControllerBase;
-import com.ranqiyun.service.web.services.LogService;
+import com.ranqiyun.service.web.services.OrgService;
 import com.ranqiyun.service.web.services.RoleService;
 import com.ranqiyun.service.web.services.UserService;
 import io.vertx.core.Vertx;
@@ -26,6 +26,8 @@ public class UserManageController extends ControllerBase {
     private UserService userService;
     @AutowiredService
     private RoleService roleService;
+    @AutowiredService
+    private OrgService orgService;
 
     public UserManageController(Vertx vertx, JsonObject config) {
         super(vertx, config);
@@ -147,6 +149,7 @@ public class UserManageController extends ControllerBase {
                           @Params(value = "page_size") Integer pageSize) {
         succeededResponse(context,
             transform(userService.list(Objects.nonNull(offset) ? offset : 0, Objects.nonNull(pageSize) ? pageSize : 20),
-                user -> roleService.listUserRoles(user.getString("id")).map(roles -> user.put("roles", roles))));
+                user -> roleService.listUserRoles(user.getString("id")).map(roles -> user.put("roles", roles))
+                    .compose(v -> orgService.listUserOrgs(v.getString("id")).map(orgs -> v.put("orgs", orgs)))));
     }
 }

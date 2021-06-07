@@ -5,10 +5,7 @@ import com.ranqiyun.service.web.annotation.Controller;
 import com.ranqiyun.service.web.annotation.Params;
 import com.ranqiyun.service.web.annotation.RequestMap;
 import com.ranqiyun.service.web.common.ControllerBase;
-import com.ranqiyun.service.web.services.LogService;
-import com.ranqiyun.service.web.services.ShortMessageService;
-import com.ranqiyun.service.web.services.TokenService;
-import com.ranqiyun.service.web.services.UserService;
+import com.ranqiyun.service.web.services.*;
 import com.ranqiyun.service.web.util.ValidateCode;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -28,6 +25,10 @@ public class UserController extends ControllerBase {
 
     @AutowiredService
     private UserService userService;
+    @AutowiredService
+    private RoleService roleService;
+    @AutowiredService
+    private OrgService orgService;
 
     @AutowiredService
     private LogService logService;
@@ -210,15 +211,16 @@ public class UserController extends ControllerBase {
      * @apiSuccess {String} id 用户ID
      * @apiSuccess {String} nickname 用户昵称
      * @apiSuccess {String} create_date 注册时间
-     * @apiSuccess {Object} company 用户企业
-     * @apiSuccess {String} company.id 企业ID
-     * @apiSuccess {String} company.name 企业名称
-     * @apiSuccess {String} company.is_admin 是否企业管理员
-     * @apiSuccess {String[]} auth 企业授予的权限
+     * @apiSuccess {Object[]} orgs 所属组织机构
+     * @apiSuccess {String} orgs.id 企业ID
+     * @apiSuccess {String} orgs.name 企业名称
+     * @apiSuccess {Object[]} roles 用户角色
      */
     @RequestMap(describe = "当前用户信息")
     public void info(RoutingContext context) {
-        succeededResponse(context, userService.getUser(currentUserId(context)));
+        succeededResponse(context, userService.getUser(currentUserId(context)).compose(user ->
+            roleService.listUserRoles(user.getString("id")).map(roles -> user.put("roles", roles))
+                .compose(v -> orgService.listUserOrgs(v.getString("id")).map(orgs -> v.put("orgs", orgs)))));
     }
 
     /**
