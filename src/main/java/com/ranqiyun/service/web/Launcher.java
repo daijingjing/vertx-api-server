@@ -30,24 +30,10 @@ public class Launcher extends io.vertx.core.Launcher {
 
     @Override
     public void afterStartingVertx(Vertx vertx) {
-        logger.info("Initializing services ...");
-
-        // 注册服务组件
-        ClassUtil.getAllClassByAnnotation(Service.class, this.getClass().getPackageName())
-            .forEach(service -> {
-                Object instance = ClassUtil.newInstance(service, vertx, vertx.getOrCreateContext().config());
-                if (instance != null) {
-                    ServiceManager.registerService(instance);
-                }
-            });
-
-        // 初始化所有服务组件
-        ServiceManager.serviceAutowired();
     }
 
     @Override
     public void beforeStoppingVertx(Vertx vertx) {
-        ServiceManager.shutdown();
     }
 
     @Override

@@ -1,9 +1,11 @@
 package com.ranqiyun.service.web.common;
 
 import com.google.common.base.Strings;
+import com.ranqiyun.service.web.annotation.AutowiredService;
 import com.ranqiyun.service.web.annotation.Controller;
 import com.ranqiyun.service.web.annotation.Params;
 import com.ranqiyun.service.web.annotation.RequestMap;
+import com.ranqiyun.service.web.services.LogService;
 import com.ranqiyun.service.web.util.ClassUtil;
 import com.ranqiyun.service.web.util.DateUtil;
 import io.vertx.core.Handler;
@@ -38,10 +40,13 @@ public class DispatchHandler extends ControllerBase implements Handler<RoutingCo
     private static final int KB = 1024;
     private static final int MB = 1024 * KB;
 
+    @AutowiredService
+    LogService logService;
+
     private final String uriPrefix;
     private final AtomicBoolean bInitialized = new AtomicBoolean(false);
 
-    private Map<String, AbstractMap.SimpleEntry<Object, Method>> requestMaps = new TreeMap<>();
+    private Map<String, RequestEntry> requestMaps = new TreeMap<>();
 
     public static Router create(Vertx vertx, JsonObject config, String handlersPackageName) {
         logger.info("Initializing router ...");
@@ -100,6 +105,22 @@ public class DispatchHandler extends ControllerBase implements Handler<RoutingCo
             .exposedHeaders(exposedHeaders));
     }
 
+    static class RequestEntry {
+        public String url;
+        public Controller controller;
+        public RequestMap requestMap;
+        public Object instance;
+        public Method method;
+
+        public RequestEntry(String url, Object instance, Method method) {
+            this.url = url;
+            this.instance = instance;
+            this.method = method;
+            this.controller = instance.getClass().getAnnotation(Controller.class);
+            this.requestMap = method.getAnnotation(RequestMap.class);
+        }
+    }
+
     public DispatchHandler(Vertx vertx, JsonObject config, String packageName) {
         super(vertx, config);
         uriPrefix = config.getString("prefix", "/api");
@@ -126,7 +147,7 @@ public class DispatchHandler extends ControllerBase implements Handler<RoutingCo
                                     return;
                                 }
 
-                                requestMaps.put(uri, new AbstractMap.SimpleEntry<>(instance, request));
+                                requestMaps.put(uri, new RequestEntry(uri, instance, request));
 
                                 logger.info(String.format("Register Request [%s%s] [%s.%s] ...", this.uriPrefix, uri, instance.getClass().getName(), request.getName()));
                             });
@@ -159,16 +180,16 @@ public class DispatchHandler extends ControllerBase implements Handler<RoutingCo
             String map = requestMaps.keySet().stream().filter(finalPath::equals).findFirst().orElse(null);
 
             if (!Strings.isNullOrEmpty(map)) {
-                AbstractMap.SimpleEntry<Object, Method> x = requestMaps.get(map);
-                RequestMap requestMap = x.getValue().getAnnotation(RequestMap.class);
-                if (!requestMap.anonymous() && Strings.isNullOrEmpty(currentUserId(context))) {
+                RequestEntry x = requestMaps.get(map);
+                if (!x.requestMap.anonymous() && Strings.isNullOrEmpty(currentUserId(context))) {
                     // 未登录
                     responseJson(context, 404, "用户未登录", 403);
-                } else if (checkModulePermission(context, x.getKey(), x.getValue())) {
+                } else if (checkModulePermission(context, x)) {
+                    logService.log(currentUserId(context), x.controller.describe(), null, x.requestMap.describe(), getParams(context).encodePrettily());
                     // 有权限
                     vertx.executeBlocking(r -> {
                         try {
-                            process_request(context, x.getKey(), x.getValue());
+                            process_request(context, x);
                             r.complete();
                         } catch (Exception exception) {
                             logger.error(exception.getMessage(), exception);
@@ -193,18 +214,19 @@ public class DispatchHandler extends ControllerBase implements Handler<RoutingCo
         }
     }
 
-    private boolean checkModulePermission(RoutingContext context, Object key, Method value) {
+    private boolean checkModulePermission(RoutingContext context, RequestEntry requestEntry) {
         return true;
     }
 
-    private void process_request(RoutingContext context, Object module, Method method) throws Exception {
-        Parameter[] method_params = method.getParameters();
+    private void process_request(RoutingContext context, RequestEntry requestEntry) throws Exception {
+        Parameter[] method_params = requestEntry.method.getParameters();
+
         if (method_params.length == 1 && method_params[0].getType().equals(RoutingContext.class)) {
-            method.invoke(module, context);
+            requestEntry.method.invoke(requestEntry.instance, context);
         } else if (method_params.length == 2
             && method_params[0].getType().equals(RoutingContext.class)
             && method_params[1].getType().equals(JsonObject.class)) {
-            method.invoke(module, context, getParams(context));
+            requestEntry.method.invoke(requestEntry.instance, context, getParams(context));
         } else if (method_params.length >= 2
             && method_params[0].getType().equals(RoutingContext.class)) {
             Object[] ppp = new Object[method_params.length];
@@ -270,7 +292,7 @@ public class DispatchHandler extends ControllerBase implements Handler<RoutingCo
                 }
             }
 
-            method.invoke(module, ppp);
+            requestEntry.method.invoke(requestEntry.instance, ppp);
         } else {
             throw new Exception("服务接口定义类型错误");
         }

@@ -7,12 +7,12 @@
     "mysql": {
         "host": "10.100.253.241",
         "port": 3306,
-        "database": "lngtrade3",
+        "database": "dtu",
         "user": "root",
         "password": "123456"
     },
     "mysql-pool": {
-        "maxSize": 20
+        "maxSize": 50
     },
     "sms": {
         "api_key": "**************************",

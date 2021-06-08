@@ -1,6 +1,7 @@
 package com.ranqiyun.service.web;
 
 import com.ranqiyun.service.web.common.DispatchHandler;
+import com.ranqiyun.service.web.common.ServiceManager;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import io.vertx.core.http.HttpServer;
@@ -16,6 +17,10 @@ public class MainVerticle extends AbstractVerticle {
 
     @Override
     public void start(Promise<Void> startFuture) throws Exception {
+
+        // init service
+        ServiceManager.init(vertx, this.getClass().getPackageName());
+
         // create http server
         JsonObject httpConfig = config().getJsonObject("http", new JsonObject());
         httpServer = vertx
@@ -34,6 +39,9 @@ public class MainVerticle extends AbstractVerticle {
     @Override
     public void stop(Promise<Void> stopFuture) throws Exception {
         logger.info("API Server shutdown...");
+
+        ServiceManager.shutdown();
+
         httpServer.close(ar -> {
             stopFuture.complete();
             logger.info("API Server is shutdown!");

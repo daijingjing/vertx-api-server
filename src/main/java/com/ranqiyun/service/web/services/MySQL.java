@@ -33,6 +33,10 @@ public class MySQL extends ServiceBase {
         MySQLConnectOptions connectOptions = new MySQLConnectOptions(config.getJsonObject("mysql", new JsonObject()));
         PoolOptions poolOptions = new PoolOptions(config.getJsonObject("mysql-pool", new JsonObject()));
 
+        logger.info(config.encodePrettily());
+
+        logger.info(connectOptions.toJson().encodePrettily());
+        logger.info(poolOptions.toJson().encodePrettily());
         // Create the client pool
         pool = MySQLPool.pool(vertx, connectOptions, poolOptions);
     }

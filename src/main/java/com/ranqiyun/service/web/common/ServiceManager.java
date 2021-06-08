@@ -1,6 +1,9 @@
 package com.ranqiyun.service.web.common;
 
 import com.ranqiyun.service.web.annotation.AutowiredService;
+import com.ranqiyun.service.web.annotation.Service;
+import com.ranqiyun.service.web.util.ClassUtil;
+import io.vertx.core.Vertx;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +32,22 @@ public class ServiceManager {
             logger.error(String.format("Don't Found Service %s ...", name));
             throw new RuntimeException(String.format("Don't Found Service %s ...", name));
         }
+    }
+
+    public static void init(Vertx vertx, String packageName){
+        logger.info("Initializing services ...");
+
+        // 注册服务组件
+        ClassUtil.getAllClassByAnnotation(Service.class, packageName)
+            .forEach(service -> {
+                Object instance = ClassUtil.newInstance(service, vertx, vertx.getOrCreateContext().config());
+                if (instance != null) {
+                    ServiceManager.registerService(instance);
+                }
+            });
+
+        // 初始化所有服务组件
+        ServiceManager.serviceAutowired();
     }
 
     public static void registerService(Object service) {

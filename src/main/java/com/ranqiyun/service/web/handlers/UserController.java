@@ -133,7 +133,7 @@ public class UserController extends ControllerBase {
                 .compose($ -> userService.getOrCreateUserByMobile(mobile))
                 .compose(u -> userService.bindOpenId(u.getString("id"), openid))
                 .compose(user_id -> {
-                    logService.log(null, "用户登录", user_id, "用户通过手机号验证码登录，IP: %s", device);
+                    logService.log(user_id, "用户登录", user_id, null, "用户通过手机号验证码登录，IP: %s", device);
                     return TokenService.get(user_id);
                 }),
             token -> responseJson(context, new JsonObject().put("token", token)));
@@ -160,7 +160,7 @@ public class UserController extends ControllerBase {
         succeeded(context,
             userService.getUserByOpenId(openid)
                 .compose(user -> {
-                    logService.log(null, "用户登录", user.getString("id"), "用户通过OPENID登录，IP: %s", device);
+                    logService.log(user.getString("id"), "用户登录", user.getString("id"), null, "用户通过OPENID登录，IP: %s", device);
                     return TokenService.get(user.getString("id"));
                 }),
             token -> responseJson(context, new JsonObject().put("token", token)));
@@ -192,7 +192,7 @@ public class UserController extends ControllerBase {
             succeeded(context,
                 userService.checkPassword(mobile, password)
                     .compose(user_id -> {
-                        logService.log(null, "用户", user_id, "用户通过密码登录，IP: %s", device);
+                        logService.log(user_id, "用户登录", user_id, null, "用户通过密码登录，IP: %s", device);
                         return TokenService.get(user_id);
                     }),
                 token -> responseJson(context, new JsonObject().put("token", token)));
