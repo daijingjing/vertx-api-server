@@ -2,6 +2,7 @@
     "http": {
         "address": "0.0.0.0",
         "port": 9000,
+        "idleTimeout": 10,
         "prefix": "/api"
     },
     "mysql": {
@@ -12,7 +13,8 @@
         "password": "123456"
     },
     "mysql-pool": {
-        "maxSize": 50
+        "maxSize": 20,
+        "idleTimeout": 60
     },
     "sms": {
         "api_key": "**************************",
